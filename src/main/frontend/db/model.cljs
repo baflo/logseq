@@ -1295,7 +1295,7 @@ independent of format as format specific heading characters are stripped"
         (when-let [repo (state/get-current-repo)]
           (->> (react/q repo [:custom :scheduled-deadline journal-title]
                  {:use-cache? false}
-                 '[:find [(pull ?block ?block-attrs) ...]
+                 '[:find [(pull ?block [?block-attrs]) ...]
                    :in $ ?day ?future ?block-attrs
                    :where
                    (or
@@ -1303,9 +1303,19 @@ independent of format as format specific heading characters are stripped"
                     [?block :block/deadline ?d])
                    [(get-else $ ?block :block/repeated? false) ?repeated]
                    [(get-else $ ?block :block/marker "NIL") ?marker]
-                   [(not= ?marker "DONE")]
-                   [(not= ?marker "CANCELED")]
-                   [(not= ?marker "CANCELLED")]
+
+                   (or-join [?block ?marker ?day]
+                    (and
+                     [?page :block/name ?pageName]
+                     [?block :block/properties ?props]
+                     [(get ?props :completed) ?completed] 
+                     [(contains? ?completed ?pageName)] 
+                     [?page :block/journal-day ?completedDay]
+                     [(= ?completedDay ?day)])
+                    (and 
+                     [(not= ?marker "DONE")]
+                     [(not= ?marker "CANCELED")]
+                     [(not= ?marker "CANCELLED")]))
                    [(<= ?d ?future)]
                    (or-join [?repeated ?d ?day]
                             [(true? ?repeated)]

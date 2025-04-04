@@ -1295,31 +1295,22 @@ independent of format as format specific heading characters are stripped"
         (when-let [repo (state/get-current-repo)]
           (->> (react/q repo [:custom :scheduled-deadline journal-title]
                  {:use-cache? false}
-                 '[:find [(pull ?block [?block-attrs]) ...]
-                   :in $ ?day ?future ?block-attrs
-                   :where
-                   (or
-                    [?block :block/scheduled ?d]
-                    [?block :block/deadline ?d])
-                   [(get-else $ ?block :block/repeated? false) ?repeated]
-                   [(get-else $ ?block :block/marker "NIL") ?marker]
-
-                   (or-join [?block ?marker ?day]
-                    (and
-                     [?page :block/name ?pageName]
-                     [?block :block/properties ?props]
-                     [(get ?props :completed) ?completed] 
-                     [(contains? ?completed ?pageName)] 
-                     [?page :block/journal-day ?completedDay]
-                     [(= ?completedDay ?day)])
-                    (and 
-                     [(not= ?marker "DONE")]
-                     [(not= ?marker "CANCELED")]
-                     [(not= ?marker "CANCELLED")]))
-                   [(<= ?d ?future)]
-                   (or-join [?repeated ?d ?day]
-                            [(true? ?repeated)]
-                            [(>= ?d ?day)])]
+                 '[:find [(pull ?block ?block-attrs) ...]
+                   :in $ ?today ?future ?block-attrs
+                   :where                           
+                     [?block :block/marker]
+                     [?block :block/page ?blockPage]
+                     [(get-else $ ?block :block/scheduled false) ?scheduleDate]
+                     [(get-else $ ?block :block/deadline false) ?deadlineDate]
+                     [(get-else $ ?blockPage :block/journal-day false) ?journalDate]
+                     [(or ?scheduleDate ?deadlineDate ?journalDate) ?compareDate]
+                     [(!= false ?compareDate)]
+                     [(<= ?compareDate ?today)] 
+                     (or-join [?block ?today]
+                       (and [?block :block/properties ?props]
+                                 [(get ?props :completed) ?completed]
+                                 [(contains? ?completed ?today)])
+                       (not [?block :block/marker "DONE"]))]
                  date
                  future-day
                  block-attrs)
